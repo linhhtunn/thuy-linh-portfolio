@@ -38,6 +38,28 @@ const CV_FILE = '/cv/Fresher%20Full%20Stack%20Nguy%E1%BB%85n%20Th%C3%B9y%20Linh.
 const DEFAULT_MODEL =
   'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_lite_optimized.glb'
 const ABOUT_MODEL = import.meta.env.VITE_ABOUT_MODEL_URL || DEFAULT_MODEL
+const giftQuestions = [
+  {
+    question: 'Bạn biết tôi qua đâu?',
+    answers: ['Facebook', 'GitHub', 'Trường học', 'Trong mơ'],
+  },
+  {
+    question: 'Bạn nghĩ tôi có tính cách thế nào?',
+    answers: ['Dễ thương', 'Hài hước', 'Khó đoán', 'Thân thiện'],
+  },
+  {
+    question: 'Trưa nay ăn gì?',
+    answers: ['Ăn cơm', 'Ăn phở', 'Gì cũng được', 'Nhịn luôn'],
+  },
+  {
+    question: 'Bạn nghĩ ngoài đời tôi sẽ thế nào?',
+    answers: ['Ít nói', 'Nói nhiều', 'Hơi ngại', 'Siêu lầy'],
+  },
+  {
+    question: 'Bạn có muốn xem trong hộp quà có gì không?',
+    answers: ['Có', 'Kó'],
+  },
+]
 let modelBufferPromise
 let threeModulesPromise
 
@@ -477,6 +499,34 @@ function AboutModel({ modelPath }) {
   const wrapperRef = useRef(null)
   const [isVisible, setIsVisible] = useState(false)
   const [status, setStatus] = useState('loading')
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const [giftCountdown, setGiftCountdown] = useState(90)
+  const [giftOpened, setGiftOpened] = useState(false)
+  const quizDone = questionIndex >= giftQuestions.length
+  const canReveal = quizDone && giftOpened && status === 'ready'
+
+  const countdownLabel = useMemo(() => {
+    const minutes = Math.floor(giftCountdown / 60)
+    const seconds = String(giftCountdown % 60).padStart(2, '0')
+    return `${minutes}:${seconds}`
+  }, [giftCountdown])
+
+  useEffect(() => {
+    if (!quizDone || giftOpened) return undefined
+
+    const timer = window.setInterval(() => {
+      setGiftCountdown((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer)
+          setGiftOpened(true)
+          return 0
+        }
+        return current - 1
+      })
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [giftOpened, quizDone])
 
   useEffect(() => {
     const wrapper = wrapperRef.current
@@ -630,8 +680,46 @@ function AboutModel({ modelPath }) {
 
   return (
     <div className="model-visual" ref={wrapperRef}>
-      <div className="model-canvas" ref={mountRef} />
-      {status === 'loading' && <span className="model-badge">Loading model...</span>}
+      <div className={`model-canvas ${canReveal ? 'is-revealed' : ''}`} ref={mountRef} />
+      {!canReveal && (
+        <div className="gift-experience">
+          {!quizDone ? (
+            <div className="gift-quiz">
+              <span className="gift-step">
+                Câu {questionIndex + 1}/{giftQuestions.length}
+              </span>
+              <h3>{giftQuestions[questionIndex].question}</h3>
+              <div className="gift-answers">
+                {giftQuestions[questionIndex].answers.map((answer, index) => (
+                  <button
+                    type="button"
+                    key={answer}
+                    onClick={() => setQuestionIndex((current) => current + 1)}
+                  >
+                    <span>{String.fromCharCode(65 + index)}</span>
+                    {answer}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className={`gift-box-wrap ${giftOpened ? 'is-open' : ''}`}>
+              <div className="gift-box" aria-hidden="true">
+                <span className="gift-lid" />
+                <span className="gift-ribbon-vertical" />
+                <span className="gift-ribbon-horizontal" />
+              </div>
+              <h3>{giftOpened ? 'Đang mở quà...' : 'Hộp quà đang mở sau'}</h3>
+              <strong>{giftOpened ? 'Sắp xong rồi' : countdownLabel}</strong>
+              <p>
+                {giftOpened
+                  ? 'Mô hình sẽ xuất hiện ngay khi tải xong.'
+                  : 'Trong lúc này mô hình 3D đang được chuẩn bị ở phía sau.'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       {status === 'missing' && (
         <span className="model-badge">
           Model host blocked loading. Set <strong>VITE_ABOUT_MODEL_URL</strong>

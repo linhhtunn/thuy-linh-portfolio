@@ -38,6 +38,27 @@ const CV_FILE = '/cv/Fresher%20Full%20Stack%20Nguy%E1%BB%85n%20Th%C3%B9y%20Linh.
 const DEFAULT_MODEL =
   'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_lite_optimized.glb'
 const ABOUT_MODEL = import.meta.env.VITE_ABOUT_MODEL_URL || DEFAULT_MODEL
+let modelBufferPromise
+let threeModulesPromise
+
+function preloadThreeModules() {
+  threeModulesPromise ??= Promise.all([
+    import('three'),
+    import('three/examples/jsm/controls/OrbitControls.js'),
+    import('three/examples/jsm/loaders/GLTFLoader.js'),
+  ])
+  return threeModulesPromise
+}
+
+function preloadModelBuffer(modelPath) {
+  modelBufferPromise ??= fetch(modelPath, { cache: 'force-cache', mode: 'cors' }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Model request failed with ${response.status}`)
+    }
+    return response.arrayBuffer()
+  })
+  return modelBufferPromise
+}
 
 const services = [
   { icon: Code2, title: 'Full Stack Web Apps' },
@@ -488,11 +509,7 @@ function AboutModel({ modelPath }) {
     let cleanupResize = () => {}
 
     async function setupModel() {
-      const [THREE, { OrbitControls }, { GLTFLoader }] = await Promise.all([
-        import('three'),
-        import('three/examples/jsm/controls/OrbitControls.js'),
-        import('three/examples/jsm/loaders/GLTFLoader.js'),
-      ])
+      const [THREE, { OrbitControls }, { GLTFLoader }] = await preloadThreeModules()
 
       if (disposed) return
 
@@ -529,47 +546,51 @@ function AboutModel({ modelPath }) {
       const clock = new THREE.Clock()
       let mixer
       const loader = new GLTFLoader()
-      loader.load(
-        modelPath,
-        (gltf) => {
+      const handleModel = (gltf) => {
+        if (disposed) return
+        const model = gltf.scene
+        const box = new THREE.Box3().setFromObject(model)
+        const size = box.getSize(new THREE.Vector3())
+        const center = box.getCenter(new THREE.Vector3())
+        const maxAxis = Math.max(size.x, size.y, size.z) || 1
+
+        model.position.sub(center)
+        model.position.y -= 0.15
+        model.scale.setScalar(2.15 / maxAxis)
+        model.rotation.y = -0.2
+        group.add(model)
+
+        if (gltf.animations.length > 0) {
+          const clip = gltf.animations.reduce((longest, current) =>
+            current.duration > longest.duration ? current : longest,
+          )
+          mixer = new THREE.AnimationMixer(model)
+          mixer.clipAction(clip).reset().play()
+        }
+
+        setStatus('ready')
+      }
+
+      const handleModelError = () => {
+        if (disposed) return
+        const geometry = new THREE.TorusKnotGeometry(0.74, 0.2, 140, 18)
+        const material = new THREE.MeshPhysicalMaterial({
+          color: 0xd991a4,
+          roughness: 0.25,
+          metalness: 0.08,
+          transmission: 0.18,
+          thickness: 0.8,
+        })
+        group.add(new THREE.Mesh(geometry, material))
+        setStatus('missing')
+      }
+
+      preloadModelBuffer(modelPath)
+        .then((buffer) => {
           if (disposed) return
-          const model = gltf.scene
-          const box = new THREE.Box3().setFromObject(model)
-          const size = box.getSize(new THREE.Vector3())
-          const center = box.getCenter(new THREE.Vector3())
-          const maxAxis = Math.max(size.x, size.y, size.z) || 1
-
-          model.position.sub(center)
-          model.position.y -= 0.15
-          model.scale.setScalar(2.15 / maxAxis)
-          model.rotation.y = -0.2
-          group.add(model)
-
-          if (gltf.animations.length > 0) {
-            const clip = gltf.animations.reduce((longest, current) =>
-              current.duration > longest.duration ? current : longest,
-            )
-            mixer = new THREE.AnimationMixer(model)
-            mixer.clipAction(clip).reset().play()
-          }
-
-          setStatus('ready')
-        },
-        undefined,
-        () => {
-          if (disposed) return
-          const geometry = new THREE.TorusKnotGeometry(0.74, 0.2, 140, 18)
-          const material = new THREE.MeshPhysicalMaterial({
-            color: 0xd991a4,
-            roughness: 0.25,
-            metalness: 0.08,
-            transmission: 0.18,
-            thickness: 0.8,
-          })
-          group.add(new THREE.Mesh(geometry, material))
-          setStatus('missing')
-        },
-      )
+          loader.parse(buffer, '', handleModel, handleModelError)
+        })
+        .catch(handleModelError)
 
       const resize = () => {
         const rect = mount.getBoundingClientRect()
@@ -787,6 +808,33 @@ function App() {
 
     window.addEventListener('pointermove', updateGlow)
     return () => window.removeEventListener('pointermove', updateGlow)
+  }, [])
+
+  useEffect(() => {
+    const preconnect = document.createElement('link')
+    preconnect.rel = 'preconnect'
+    preconnect.href = 'https://huggingface.co'
+    preconnect.crossOrigin = 'anonymous'
+    document.head.appendChild(preconnect)
+
+    const warmModel = () => {
+      preloadThreeModules()
+      preloadModelBuffer(ABOUT_MODEL).catch(() => {})
+    }
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(warmModel, { timeout: 1800 })
+      return () => {
+        window.cancelIdleCallback(idleId)
+        document.head.removeChild(preconnect)
+      }
+    }
+
+    const timer = window.setTimeout(warmModel, 1200)
+    return () => {
+      window.clearTimeout(timer)
+      document.head.removeChild(preconnect)
+    }
   }, [])
 
   return (

@@ -38,7 +38,8 @@ import './App.css'
 const introText = "Hello, I'm Nguyen Thuy Linh"
 const GITHUB_USERNAME = 'linhhtunn'
 const CV_FILE = '/cv/Fresher%20Full%20Stack%20Nguy%E1%BB%85n%20Th%C3%B9y%20Linh.pdf'
-const ABOUT_MODEL = '/models/nanally_coluccisre_-_neverness_to_everness.glb'
+const ABOUT_MODEL =
+  'https://github.com/linhhtunn/thuy-linh-portfolio/releases/download/v1.0.0/nanally_coluccisre_-_neverness_to_everness.glb'
 
 const services = [
   { icon: Code2, title: 'Full Stack Web Apps' },

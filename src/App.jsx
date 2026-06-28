@@ -30,6 +30,7 @@ import {
   FaYoutube,
 } from 'react-icons/fa'
 import { FaXTwitter } from 'react-icons/fa6'
+import giftImage from './assets/hopqua.png'
 import './App.css'
 
 const introText = "Hello, I'm Nguyen Thuy Linh"
@@ -704,18 +705,9 @@ function AboutModel({ modelPath }) {
             </div>
           ) : (
             <div className={`gift-box-wrap ${giftOpened ? 'is-open' : ''}`}>
-              <div className="gift-box" aria-hidden="true">
-                <span className="gift-lid" />
-                <span className="gift-ribbon-vertical" />
-                <span className="gift-ribbon-horizontal" />
-              </div>
-              <h3>{giftOpened ? 'Đang mở quà...' : 'Hộp quà đang mở sau'}</h3>
+              <img className="gift-box-image" src={giftImage} alt="" aria-hidden="true" />
+              <h3>{giftOpened ? 'Đang mở quà...' : 'Ủa zì zậy tar ?'}</h3>
               <strong>{giftOpened ? 'Sắp xong rồi' : countdownLabel}</strong>
-              <p>
-                {giftOpened
-                  ? 'Mô hình sẽ xuất hiện ngay khi tải xong.'
-                  : 'Trong lúc này mô hình 3D đang được chuẩn bị ở phía sau.'}
-              </p>
             </div>
           )}
         </div>

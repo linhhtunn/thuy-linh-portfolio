@@ -38,9 +38,9 @@ import './App.css'
 const introText = "Hello, I'm Nguyen Thuy Linh"
 const GITHUB_USERNAME = 'linhhtunn'
 const CV_FILE = '/cv/Fresher%20Full%20Stack%20Nguy%E1%BB%85n%20Th%C3%B9y%20Linh.pdf'
-const RELEASE_MODEL =
-  'https://github.com/linhhtunn/thuy-linh-portfolio/releases/download/v1.0.0/nanally_coluccisre_-_neverness_to_everness.glb'
-const ABOUT_MODEL = import.meta.env.VITE_ABOUT_MODEL_URL || RELEASE_MODEL
+const DEFAULT_MODEL =
+  'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_-_neverness_to_everness.glb'
+const ABOUT_MODEL = import.meta.env.VITE_ABOUT_MODEL_URL || DEFAULT_MODEL
 
 const services = [
   { icon: Code2, title: 'Full Stack Web Apps' },
@@ -232,14 +232,14 @@ function FloatingDock() {
   const { time, date } = useClock()
   const { online, battery } = useSystemStatus()
   const dockItems = [
-    { icon: Home, image: '/dock-icons/home.png', label: 'Home', href: '#hero' },
-    { icon: User, image: '/dock-icons/contacts.png', label: 'About', href: '#about' },
-    { icon: Settings, image: '/dock-icons/settings.png', label: 'Skills', href: '#skills' },
-    { icon: BriefcaseBusiness, image: '/dock-icons/briefcase.png', label: 'Repos', href: '#repositories' },
-    { icon: Mail, image: '/dock-icons/mail.png', label: 'Contact', href: '#contact' },
-    { icon: Image, image: '/dock-icons/photos.png', label: 'Gallery', href: '#repositories' },
-    { icon: Sparkles, image: '/dock-icons/ideas.png', label: 'Ideas', href: '#skills' },
-    { icon: FileText, image: '/dock-icons/document.png', label: 'CV', href: '#about' },
+    { icon: Home, label: 'Home', href: '#hero' },
+    { icon: User, label: 'About', href: '#about' },
+    { icon: Settings, label: 'Skills', href: '#skills' },
+    { icon: BriefcaseBusiness, label: 'Repos', href: '#repositories' },
+    { icon: Mail, label: 'Contact', href: '#contact' },
+    { icon: Image, label: 'Gallery', href: '#repositories' },
+    { icon: Sparkles, label: 'Ideas', href: '#skills' },
+    { icon: FileText, label: 'CV', href: '#about' },
   ]
 
   return (

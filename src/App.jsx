@@ -30,16 +30,13 @@ import {
   FaYoutube,
 } from 'react-icons/fa'
 import { FaXTwitter } from 'react-icons/fa6'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import './App.css'
 
 const introText = "Hello, I'm Nguyen Thuy Linh"
 const GITHUB_USERNAME = 'linhhtunn'
 const CV_FILE = '/cv/Fresher%20Full%20Stack%20Nguy%E1%BB%85n%20Th%C3%B9y%20Linh.pdf'
 const DEFAULT_MODEL =
-  'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_optimized.glb'
+  'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_lite_optimized.glb'
 const ABOUT_MODEL = import.meta.env.VITE_ABOUT_MODEL_URL || DEFAULT_MODEL
 
 const services = [
@@ -456,117 +453,162 @@ function About() {
 
 function AboutModel({ modelPath }) {
   const mountRef = useRef(null)
+  const wrapperRef = useRef(null)
+  const [isVisible, setIsVisible] = useState(false)
   const [status, setStatus] = useState('loading')
 
   useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return undefined
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '220px' },
+    )
+
+    observer.observe(wrapper)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible) return undefined
+
     const mount = mountRef.current
     if (!mount) return undefined
 
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100)
-    camera.position.set(0, 1.15, 8.2)
-
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setClearColor(0x000000, 0)
-    mount.appendChild(renderer.domElement)
-
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.enablePan = false
-    controls.minDistance = 5.5
-    controls.maxDistance = 10
-    controls.target.set(0, 0.35, 0)
-    controls.autoRotate = false
-
-    const group = new THREE.Group()
-    scene.add(group)
-
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd9a3ac, 2.6))
-
-    const key = new THREE.DirectionalLight(0xffffff, 3.2)
-    key.position.set(3, 4, 5)
-    scene.add(key)
-
-    const pink = new THREE.PointLight(0xd991a4, 2.6, 8)
-    pink.position.set(-2.5, 2, 3)
-    scene.add(pink)
-
-    const clock = new THREE.Clock()
-    let mixer
-    const loader = new GLTFLoader()
-    loader.load(
-      modelPath,
-      (gltf) => {
-        const model = gltf.scene
-        const box = new THREE.Box3().setFromObject(model)
-        const size = box.getSize(new THREE.Vector3())
-        const center = box.getCenter(new THREE.Vector3())
-        const maxAxis = Math.max(size.x, size.y, size.z) || 1
-
-        model.position.sub(center)
-        model.position.y -= 0.15
-        model.scale.setScalar(2.15 / maxAxis)
-        model.rotation.y = -0.2
-        group.add(model)
-
-        if (gltf.animations.length > 0) {
-          const clip = gltf.animations.reduce((longest, current) =>
-            current.duration > longest.duration ? current : longest,
-          )
-          mixer = new THREE.AnimationMixer(model)
-          mixer.clipAction(clip).reset().play()
-        }
-
-        setStatus('ready')
-      },
-      undefined,
-      () => {
-        const geometry = new THREE.TorusKnotGeometry(0.74, 0.2, 140, 18)
-        const material = new THREE.MeshPhysicalMaterial({
-          color: 0xd991a4,
-          roughness: 0.25,
-          metalness: 0.08,
-          transmission: 0.18,
-          thickness: 0.8,
-        })
-        group.add(new THREE.Mesh(geometry, material))
-        setStatus('missing')
-      },
-    )
-
-    const resize = () => {
-      const rect = mount.getBoundingClientRect()
-      const width = Math.max(rect.width, 1)
-      const height = Math.max(rect.height, 1)
-      renderer.setSize(width, height)
-      camera.aspect = width / height
-      camera.updateProjectionMatrix()
-    }
-
+    let disposed = false
+    let renderer
+    let controls
     let animationId
-    const animate = () => {
-      animationId = window.requestAnimationFrame(animate)
-      mixer?.update(clock.getDelta())
-      controls.update()
-      renderer.render(scene, camera)
+    let cleanupResize = () => {}
+
+    async function setupModel() {
+      const [THREE, { OrbitControls }, { GLTFLoader }] = await Promise.all([
+        import('three'),
+        import('three/examples/jsm/controls/OrbitControls.js'),
+        import('three/examples/jsm/loaders/GLTFLoader.js'),
+      ])
+
+      if (disposed) return
+
+      const scene = new THREE.Scene()
+      const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100)
+      camera.position.set(0, 1.15, 8.2)
+
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
+      renderer.setClearColor(0x000000, 0)
+      mount.appendChild(renderer.domElement)
+
+      controls = new OrbitControls(camera, renderer.domElement)
+      controls.enableDamping = true
+      controls.enablePan = false
+      controls.minDistance = 5.5
+      controls.maxDistance = 10
+      controls.target.set(0, 0.35, 0)
+      controls.autoRotate = false
+
+      const group = new THREE.Group()
+      scene.add(group)
+
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xd9a3ac, 2.6))
+
+      const key = new THREE.DirectionalLight(0xffffff, 3.2)
+      key.position.set(3, 4, 5)
+      scene.add(key)
+
+      const pink = new THREE.PointLight(0xd991a4, 2.6, 8)
+      pink.position.set(-2.5, 2, 3)
+      scene.add(pink)
+
+      const clock = new THREE.Clock()
+      let mixer
+      const loader = new GLTFLoader()
+      loader.load(
+        modelPath,
+        (gltf) => {
+          if (disposed) return
+          const model = gltf.scene
+          const box = new THREE.Box3().setFromObject(model)
+          const size = box.getSize(new THREE.Vector3())
+          const center = box.getCenter(new THREE.Vector3())
+          const maxAxis = Math.max(size.x, size.y, size.z) || 1
+
+          model.position.sub(center)
+          model.position.y -= 0.15
+          model.scale.setScalar(2.15 / maxAxis)
+          model.rotation.y = -0.2
+          group.add(model)
+
+          if (gltf.animations.length > 0) {
+            const clip = gltf.animations.reduce((longest, current) =>
+              current.duration > longest.duration ? current : longest,
+            )
+            mixer = new THREE.AnimationMixer(model)
+            mixer.clipAction(clip).reset().play()
+          }
+
+          setStatus('ready')
+        },
+        undefined,
+        () => {
+          if (disposed) return
+          const geometry = new THREE.TorusKnotGeometry(0.74, 0.2, 140, 18)
+          const material = new THREE.MeshPhysicalMaterial({
+            color: 0xd991a4,
+            roughness: 0.25,
+            metalness: 0.08,
+            transmission: 0.18,
+            thickness: 0.8,
+          })
+          group.add(new THREE.Mesh(geometry, material))
+          setStatus('missing')
+        },
+      )
+
+      const resize = () => {
+        const rect = mount.getBoundingClientRect()
+        const width = Math.max(rect.width, 1)
+        const height = Math.max(rect.height, 1)
+        renderer.setSize(width, height)
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+      }
+
+      const animate = () => {
+        animationId = window.requestAnimationFrame(animate)
+        mixer?.update(clock.getDelta())
+        controls.update()
+        renderer.render(scene, camera)
+      }
+
+      resize()
+      animate()
+      window.addEventListener('resize', resize)
+      cleanupResize = () => window.removeEventListener('resize', resize)
     }
 
-    resize()
-    animate()
-    window.addEventListener('resize', resize)
+    setupModel()
 
     return () => {
-      window.removeEventListener('resize', resize)
-      window.cancelAnimationFrame(animationId)
-      controls.dispose()
-      renderer.dispose()
-      mount.removeChild(renderer.domElement)
+      disposed = true
+      cleanupResize()
+      if (animationId) window.cancelAnimationFrame(animationId)
+      controls?.dispose()
+      renderer?.dispose()
+      if (renderer?.domElement && mount.contains(renderer.domElement)) {
+        mount.removeChild(renderer.domElement)
+      }
     }
-  }, [modelPath])
+  }, [isVisible, modelPath])
 
   return (
-    <div className="model-visual">
+    <div className="model-visual" ref={wrapperRef}>
       <div className="model-canvas" ref={mountRef} />
       {status === 'loading' && <span className="model-badge">Loading model...</span>}
       {status === 'missing' && (

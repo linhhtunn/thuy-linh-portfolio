@@ -39,7 +39,7 @@ const introText = "Hello, I'm Nguyen Thuy Linh"
 const GITHUB_USERNAME = 'linhhtunn'
 const CV_FILE = '/cv/Fresher%20Full%20Stack%20Nguy%E1%BB%85n%20Th%C3%B9y%20Linh.pdf'
 const DEFAULT_MODEL =
-  'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_-_neverness_to_everness.glb'
+  'https://huggingface.co/datasets/Linhthuy123/portfolio-assets/resolve/main/nanally_coluccisre_optimized.glb'
 const ABOUT_MODEL = import.meta.env.VITE_ABOUT_MODEL_URL || DEFAULT_MODEL
 
 const services = [

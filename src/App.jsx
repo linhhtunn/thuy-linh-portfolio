@@ -61,7 +61,7 @@ const giftQuestions = [
     answers: ['Có', 'Kó'],
   },
 ]
-let modelBufferPromise
+const modelBufferPromises = new Map()
 let threeModulesPromise
 
 function preloadThreeModules() {
@@ -69,18 +69,27 @@ function preloadThreeModules() {
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
     import('three/examples/jsm/loaders/GLTFLoader.js'),
+    import('three/examples/jsm/libs/meshopt_decoder.module.js'),
   ])
   return threeModulesPromise
 }
 
 function preloadModelBuffer(modelPath) {
-  modelBufferPromise ??= fetch(modelPath, { cache: 'force-cache', mode: 'cors' }).then((response) => {
-    if (!response.ok) {
-      throw new Error(`Model request failed with ${response.status}`)
-    }
-    return response.arrayBuffer()
-  })
-  return modelBufferPromise
+  if (!modelBufferPromises.has(modelPath)) {
+    const request = fetch(modelPath, { cache: 'force-cache', mode: 'cors' })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Model request failed with ${response.status}`)
+        }
+        return response.arrayBuffer()
+      })
+      .catch((error) => {
+        modelBufferPromises.delete(modelPath)
+        throw error
+      })
+    modelBufferPromises.set(modelPath, request)
+  }
+  return modelBufferPromises.get(modelPath)
 }
 
 const services = [
@@ -504,7 +513,7 @@ function AboutModel({ modelPath }) {
   const [giftCountdown, setGiftCountdown] = useState(90)
   const [giftOpened, setGiftOpened] = useState(false)
   const quizDone = questionIndex >= giftQuestions.length
-  const canReveal = quizDone && giftOpened && status === 'ready'
+  const canReveal = quizDone && giftOpened && status !== 'loading'
 
   const countdownLabel = useMemo(() => {
     const minutes = Math.floor(giftCountdown / 60)
@@ -560,7 +569,7 @@ function AboutModel({ modelPath }) {
     let cleanupResize = () => {}
 
     async function setupModel() {
-      const [THREE, { OrbitControls }, { GLTFLoader }] = await preloadThreeModules()
+      const [THREE, { OrbitControls }, { GLTFLoader }, { MeshoptDecoder }] = await preloadThreeModules()
 
       if (disposed) return
 
@@ -597,6 +606,7 @@ function AboutModel({ modelPath }) {
       const clock = new THREE.Clock()
       let mixer
       const loader = new GLTFLoader()
+      loader.setMeshoptDecoder(MeshoptDecoder)
       const handleModel = (gltf) => {
         if (disposed) return
         const model = gltf.scene
@@ -622,8 +632,9 @@ function AboutModel({ modelPath }) {
         setStatus('ready')
       }
 
-      const handleModelError = () => {
+      const handleModelError = (error) => {
         if (disposed) return
+        console.warn('3D model could not be loaded, showing fallback instead.', error)
         const geometry = new THREE.TorusKnotGeometry(0.74, 0.2, 140, 18)
         const material = new THREE.MeshPhysicalMaterial({
           color: 0xd991a4,
@@ -665,7 +676,11 @@ function AboutModel({ modelPath }) {
       cleanupResize = () => window.removeEventListener('resize', resize)
     }
 
-    setupModel()
+    setupModel().catch((error) => {
+      if (disposed) return
+      console.warn('3D scene failed to initialize.', error)
+      setStatus('missing')
+    })
 
     return () => {
       disposed = true
